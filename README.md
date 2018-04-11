@@ -1,5 +1,6 @@
-# LEOBackground
-Macros to compute and visualize the background on a Low Earth Orbit
+# Background on a low Earth orbit
+
+Macros to compute and visualize the background for a satellite on a Low Earth Orbit (LEO)\
 
 It uses equations/data from:
 * Albedo Neutrons: Kole et al. 2015
@@ -50,3 +51,8 @@ It uses equations/data from:
 * Secondary Positrons:
     - Mizuno et al. 2004
                            http://stacks.iop.org/0004-637X/614/i=2/a=1113
+
+\
+\
+\
+_Acknowledgment: This work has been carried out in the framework of the project AHEAD, funded by the European Union_
