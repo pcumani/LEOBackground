@@ -313,9 +313,9 @@ class LEOBackgroundGenerator:
 
         # Scaling the other results to the Mizuno result:
 
-        MizunoValue = ScalerMizuno * self.MizunoAlbedoPhotons(1185)
-        ChurazovSazonovValue = (self.ChurazovAlbedoPhotons(1185)
-                                + self.SazonovAlbedoPhotons(1185))
+        MizunoValue = ScalerMizuno * self.MizunoAlbedoPhotons(1850)
+        ChurazovSazonovValue = (self.ChurazovAlbedoPhotons(1850)
+                                + self.SazonovAlbedoPhotons(1850))
         ScalerChurazovSazonov = MizunoValue/ChurazovSazonovValue
 
         MizunoValue = ScalerMizuno * self.MizunoAlbedoPhotons(200000)
@@ -325,12 +325,12 @@ class LEOBackgroundGenerator:
         Flux = np.copy(np.asarray(E, dtype=float))
         E = np.asarray(E, dtype=float)
 
-        mask = np.logical_and(E >= 1185, E < 200000.)
+        mask = np.logical_and(E >= 1850, E < 200000.)
         maskabdo = E >= 200000.
 
-        Flux[E < 1185.] = ScalerChurazovSazonov * (
-                         self.ChurazovAlbedoPhotons(E[E < 1185.])
-                         + self.SazonovAlbedoPhotons(E[E < 1185.]))
+        Flux[E < 1850.] = ScalerChurazovSazonov * (
+                         self.ChurazovAlbedoPhotons(E[E < 1850.])
+                         + self.SazonovAlbedoPhotons(E[E < 1850.]))
         Flux[mask] = ScalerMizuno * self.MizunoAlbedoPhotons(E[mask])
         Flux[maskabdo] = ScalerAbdo * self.AbdoAlbedoPhotons(E[maskabdo])
 
