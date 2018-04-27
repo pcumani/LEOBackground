@@ -51,6 +51,10 @@ colors = ['darkred', 'darkorange', 'darkgreen', 'steelblue', 'darkblue',
           'orchid', 'red', 'darkgrey', 'mediumseagreen', 'black',
           'gold', 'hotpink']
 
+dash = [(5, 0), (5, 2), (5, 2, 1, 2), (2, 1), (5, 5), (5, 3, 3, 3),
+        (5, 10), (5, 3, 3, 3), (5, 5, 5, 5), (3, 5),
+        (9, 2), (7, 3)]
+
 fig1, ax1 = plt.subplots(nrows=1, ncols=1, sharex=True, figsize=(12, 8))
 
 plt.minorticks_on()
@@ -62,7 +66,7 @@ for i in range(0, len(LeoBackfunc)):
     masknan = ~np.isnan(LeoBackfunc[i](Energies))
     ax1.loglog(Energies[masknan]/1000,
                10000*1000*LeoBackfunc[i](Energies)[masknan],
-               color=colors[i], linestyle='--', label=Title[i])
+               color=colors[i], linestyle='--', dashes=dash[i], label=Title[i])
 
 handles, labels = ax1.get_legend_handles_labels()
 
