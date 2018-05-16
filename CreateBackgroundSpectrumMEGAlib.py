@@ -48,9 +48,9 @@ LEOClass = LEO(1.0*Altitude, 1.0*Inclination)
 ViewAtmo = 2*np.pi * (np.cos(np.deg2rad(LEOClass.HorizonAngle)) + 1)
 ViewSky = 2*np.pi * (1-np.cos(np.deg2rad(LEOClass.HorizonAngle)))
 
-Particle = ["AlbedoNeutrons", "PrimaryProtons", "SecondaryProtons"]
+Particle = ["AtmosphericNeutrons", "PrimaryProtons", "SecondaryProtons"]
 
-Megalibfunc = [LEOClass.AlbedoNeutrons, LEOClass.PrimaryProtons,
+Megalibfunc = [LEOClass.AtmosphericNeutrons, LEOClass.PrimaryProtons,
                LEOClass.SecondaryProtons]
 fac = [ViewAtmo, ViewSky, 4*np.pi]
 

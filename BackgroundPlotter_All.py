@@ -35,14 +35,14 @@ Energies = np.logspace(1, 8, num=1000000, endpoint=True, base=10.0)
 
 LeoBack = LEO(args.altitude, args.inclination)
 
-LeoBackfunc = [LeoBack.AlbedoNeutrons, LeoBack.CosmicPhotons,
+LeoBackfunc = [LeoBack.AtmosphericNeutrons, LeoBack.CosmicPhotons,
                LeoBack.PrimaryProtons, LeoBack.SecondaryProtons,
                LeoBack.PrimaryAlphas, LeoBack.PrimaryElectrons,
                LeoBack.PrimaryPositrons, LeoBack.SecondaryElectrons,
                LeoBack.SecondaryPositrons, LeoBack.AlbedoPhotons,
                LeoBack.GalacticCenter, LeoBack.GalacticDisk]
 
-Title = ["Albedo Neutrons", "Cosmic Photons", "Primary Protons",
+Title = ["Atmospheric Neutrons", "Cosmic Photons", "Primary Protons",
          "Secondary Protons", "Primary Alphas", "Primary Electrons",
          "Primary Positrons", "Secondary Electrons", "Secondary Positrons",
          "Albedo Photons", "Galactic Center", "Galactic Disk"]

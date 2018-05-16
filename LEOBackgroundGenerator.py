@@ -39,7 +39,7 @@ class LEOBackgroundGenerator:
                            http://stacks.iop.org/0004-637X/614/i=2/a=1113
     - Secondary Positrons: Mizuno et al. 2004
                            http://stacks.iop.org/0004-637X/614/i=2/a=1113
-    - Albedo Photons: Sazonov et al. 2007
+    - Atmospheric Photons: Sazonov et al. 2007
                         doi:10.1111/j.1365-2966.2007.11746.x
                       Churazov et al. 2006
                         doi:10.1111/j.1365-2966.2008.12918.x
@@ -83,7 +83,7 @@ class LEOBackgroundGenerator:
         """
         R_E = R_earth.to('cm').value
         # g 01 term (in units of G) from IGRF-12 for 2015
-        g10 = 2.9442 * 10**(-9) * 10**4 * 10**4  # G
+        g10 = 29442 * 10**(-9) * 10**4  # G
 
         M = g10*R_E*300/10**9  # GV/cm2
 
@@ -111,8 +111,8 @@ class LEOBackgroundGenerator:
         def log_interp(zz): return np.power(10.0, lin_interp(np.log10(zz)))
         return log_interp
 
-    def AlbedoNeutrons(self, E):
-        """Albedo neutrons determinined after Kole et al. 2015
+    def AtmosphericNeutrons(self, E):
+        """Atmospheric neutrons determinined after Kole et al. 2015
         Assumptions:
         * Angular distribution is flat out to the Earth-horizon
         * Downward component can be neglected
