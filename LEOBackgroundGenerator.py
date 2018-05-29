@@ -182,7 +182,7 @@ class LEOBackgroundGenerator:
 
         Flux = np.copy(np.asarray(E, dtype=float))
 
-        Flux = I100 * (E/(100*1000))**(-gamma)*np.exp(E/Ecut)
+        Flux = I100 * (E/(100*1000))**(-gamma)*np.exp(-E/Ecut)
         return Flux
 
     def CosmicPhotons(self, E):
@@ -333,10 +333,79 @@ class LEOBackgroundGenerator:
                          + self.SazonovAlbedoPhotons(E[E < 1850.]))
         Flux[mask] = ScalerMizuno * self.MizunoAlbedoPhotons(E[mask])
         Flux[maskabdo] = ScalerAbdo * self.AbdoAlbedoPhotons(E[maskabdo])
+        return Flux
+
+    def MizunoCutoffpl(self, f0, f1, a, ec, E):
+        """Function describing a power-law with a cutoff
+        """
+        ec = ec * 1000
+        Flux = np.copy(np.asarray(E, dtype=float))
+        mask = np.logical_and(E >= 1, E < 100)
+        maskHE = E >= 100
+
+        Flux[E < 1] = 0.
+        Flux[mask] = f0*pow(E[mask]/100, -1)
+        Flux[maskHE] = f1*pow(E[maskHE]/1000, -a) * np.exp(
+                                         -pow(E[maskHE]/ec, -a+1))
+
+        return Flux
+
+    def MizunoBrokenpl(self, f0, a, eb, b, E):
+        """Function describing a power-law with a cutoff
+        """
+        eb = eb
+        Flux = np.copy(np.asarray(E, dtype=float))
+        mask = np.logical_and(E >= 1, E < 100)
+        maskHE = np.logical_and(E >= 100, E < eb)
+
+        Flux[E < 1] = 0.
+        Flux[mask] = f0*pow(E[mask]/100, -1)
+        Flux[maskHE] = f0*pow(E[maskHE]/100, -a)
+        Flux[E >= eb] = f0*pow(eb/100, -a) * pow(E[E >= eb]/eb, -b)
 
         return Flux
 
     def SecondaryProtons(self, E):
+        """ Equation 8 from Mizuno et al. 2004,
+            Downward and upward component are summed
+           Return a flux in ph /cm2 /s /keV /sr
+        """
+
+        EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
+
+        thM = np.deg2rad(self.geomlat)
+
+        if thM >= 0. and thM <= 0.2:
+            FluxU = self.MizunoCutoffpl(0.136, 0.123, 0.155, 0.51, EnergyMeV)
+            FluxD = self.MizunoCutoffpl(0.136, 0.123, 0.155, 0.51, EnergyMeV)
+        elif thM >= 0.2 and thM <= 0.3:
+            FluxU = self.MizunoBrokenpl(0.1, 0.87, 600, 2.53, EnergyMeV)
+            FluxD = self.MizunoBrokenpl(0.1, 0.87, 600, 2.53, EnergyMeV)
+        elif thM >= 0.3 and thM <= 0.4:
+            FluxU = self.MizunoBrokenpl(0.1, 1.09, 600, 2.40, EnergyMeV)
+            FluxD = self.MizunoBrokenpl(0.1, 1.09, 600, 2.40, EnergyMeV)
+        elif thM >= 0.4 and thM <= 0.5:
+            FluxU = self.MizunoBrokenpl(0.1, 1.19, 600, 2.54, EnergyMeV)
+            FluxD = self.MizunoBrokenpl(0.1, 1.19, 600, 2.54, EnergyMeV)
+        elif thM >= 0.5 and thM <= 0.6:
+            FluxU = self.MizunoBrokenpl(0.1, 1.18, 400, 2.31, EnergyMeV)
+            FluxD = self.MizunoBrokenpl(0.1, 1.18, 400, 2.31, EnergyMeV)
+        elif thM >= 0.6 and thM <= 0.7:
+            FluxD = self.MizunoBrokenpl(0.13, 1.1, 300, 2.25, EnergyMeV)
+            FluxU = self.MizunoBrokenpl(0.13, 1.1, 300, 2.95, EnergyMeV)
+        elif thM >= 0.7 and thM <= 0.8:
+            FluxD = self.MizunoBrokenpl(0.2, 1.5, 400, 1.85, EnergyMeV)
+            FluxU = self.MizunoBrokenpl(0.2, 1.5, 400, 4.16, EnergyMeV)
+        elif thM >= 0.8 and thM <= 0.9:
+            FluxD = self.MizunoCutoffpl(0.23, 0.017, 1.83, 0.177, EnergyMeV)
+            FluxU = self.MizunoBrokenpl(0.23, 1.53, 400, 4.68, EnergyMeV)
+        elif thM >= 0.9 and thM <= 1.:
+            FluxD = self.MizunoCutoffpl(0.44, 0.037, 1.98, 0.21, EnergyMeV)
+            FluxU = self.MizunoBrokenpl(0.44, 2.25, 400, 3.09, EnergyMeV)
+
+        return (FluxU)/10**7
+
+    '''def SecondaryProtons(self, E):
         """ Equation 8 from Mizuno et al. 2004,
             A factor of 2 is added to sum downward and upward component
            Return a flux in ph /cm2 /s /keV /sr
@@ -357,7 +426,7 @@ class LEOBackgroundGenerator:
         Flux[mask] = 2*F0*pow(EnergyMeV[mask]/100, -1)
         Flux[maskHE] = 2*F1*pow(EnergyMeV[maskHE]/1000, -a) * np.exp(
                                          -pow(EnergyMeV[maskHE]/Ec, -a+1))
-        return Flux/10**7
+        return Flux/10**7'''
 
     def AguilarElectronPositron(self):
         """ Read Table I from Aguilar et al. 2014,
