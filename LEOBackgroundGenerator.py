@@ -403,7 +403,7 @@ class LEOBackgroundGenerator:
             FluxD = self.MizunoCutoffpl(0.44, 0.037, 1.98, 0.21, EnergyMeV)
             FluxU = self.MizunoBrokenpl(0.44, 2.25, 400, 3.09, EnergyMeV)
 
-        return (FluxU)/10**7
+        return (FluxU+FluxD)/10**7
 
     '''def SecondaryProtons(self, E):
         """ Equation 8 from Mizuno et al. 2004,
