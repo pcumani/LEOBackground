@@ -499,7 +499,83 @@ class LEOBackgroundGenerator:
 
         return f(E)*redfac*solmodfac
 
+    def MizunoPl(self, f0, a, E):
+        """Function describing a power-law
+        """
+
+        Flux = np.copy(np.asarray(E, dtype=float))
+        mask = np.logical_and(E >= 1, E < 100)
+
+        Flux[E < 1] = 0.
+        Flux[mask] = f0*pow(E[mask]/100, -1)
+        Flux[E >= 100] = f0 * pow(E[E >= 100]/100, -a)
+
+        return Flux
+
+    def MizunoPlhump(self, f0, a, f1, b, ec, E):
+        """Function describing a power-law with hump
+        """
+
+        Flux = np.copy(np.asarray(E, dtype=float))
+        mask = np.logical_and(E >= 1, E < 100)
+
+        Flux[E < 1] = 0.
+        Flux[mask] = f0*pow(E[mask]/100, -1)
+        Flux[E >= 100] = (f0 * pow(E[E >= 100]/100, -a)
+                          + f1 * pow(E[E >= 100]/1000, b)
+                          * np.exp(-pow(E[E >= 100]/(ec*1000), b+1)))
+        return Flux
+
     def SecondaryElectrons(self, E):
+        """ Secondary electrons determinined after  section 3.4 of
+            Mizuno et al. 2004
+            Return a flux in ph /cm2 /s /keV /sr
+        """
+        EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
+
+        thM = np.deg2rad(self.geomlat)
+
+        if thM >= 0. and thM <= 0.3:
+            Flux = self.MizunoBrokenpl(0.3, 2.2, 3000, 4.0, EnergyMeV)
+        elif thM >= 0.3 and thM <= 0.6:
+            Flux = self.MizunoPl(0.3, 2.7, EnergyMeV)
+        elif thM >= 0.6 and thM <= 0.8:
+            Flux = self.MizunoPlhump(0.3, 3.3, 2/10000, 1.5, 2.3, EnergyMeV)
+        elif thM >= 0.8 and thM <= 0.9:
+            Flux = self.MizunoPlhump(0.3, 3.5, 1.6/1000, 2.0, 1.6, EnergyMeV)
+        elif thM >= 0.9 and thM <= 1.0:
+            Flux = self.MizunoPl(0.3, 2.5, EnergyMeV)
+
+        return Flux/10**7
+
+    def SecondaryPositrons(self, E):
+        """ Secondary positrons determinined after section 3.4 of
+            Mizuno et al. 2004
+            Return a flux in ph /cm2 /s /keV /sr
+        """
+        EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
+
+        thM = np.deg2rad(self.geomlat)
+
+        if thM >= 0. and thM <= 0.3:
+            Flux = self.MizunoBrokenpl(0.3, 2.2, 3000, 4.0, EnergyMeV)
+            ratio = 3.3
+        elif thM >= 0.3 and thM <= 0.6:
+            Flux = self.MizunoPl(0.3, 2.7, EnergyMeV)
+            ratio = 1.66
+        elif thM >= 0.6 and thM <= 0.8:
+            Flux = self.MizunoPlhump(0.3, 3.3, 2/10000, 1.5, 2.3, EnergyMeV)
+            ratio = 1.0
+        elif thM >= 0.8 and thM <= 0.9:
+            Flux = self.MizunoPlhump(0.3, 3.5, 1.6/1000, 2.0, 1.6, EnergyMeV)
+            ratio = 1.0
+        elif thM >= 0.9 and thM <= 1.0:
+            Flux = self.MizunoPl(0.3, 2.5, EnergyMeV)
+            ratio = 1.0
+
+        return ratio*Flux/10**7
+
+    '''def SecondaryElectrons(self, E):
         """ Secondary electrons determinined after  section 3.4 of
             Mizuno et al. 2004
             Return a flux in ph /cm2 /s /keV /sr
@@ -546,7 +622,7 @@ class LEOBackgroundGenerator:
         Flux[mask2] = F0 * pow(EnergyGeV[mask2]/0.1, -a)
         Flux[mask3] = F0 * pow(Ebreak/0.1, -a) * pow(EnergyGeV[mask3]/Ebreak, -b)
 
-        return Flux/(1000*10000)
+        return Flux/(1000*10000)'''
 
     def PrimaryProtons(self, E):
         """ Read Table from Aguilar et al. 2015,
