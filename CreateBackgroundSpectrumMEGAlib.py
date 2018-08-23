@@ -48,22 +48,26 @@ LEOClass = LEO(1.0*Altitude, 1.0*Inclination)
 ViewAtmo = 2*np.pi * (np.cos(np.deg2rad(LEOClass.HorizonAngle)) + 1)
 ViewSky = 2*np.pi * (1-np.cos(np.deg2rad(LEOClass.HorizonAngle)))
 
-Particle = ["AtmosphericNeutrons", "PrimaryProtons", "SecondaryProtons"]
+Particle = ["AtmosphericNeutrons", "PrimaryProtons", "SecondaryProtonsUpward",
+            "SecondaryProtonsDownward", "PrimaryAlphas", "CosmicPhotons", "AlbedoPhotons"]
 
 Megalibfunc = [LEOClass.AtmosphericNeutrons, LEOClass.PrimaryProtons,
-               LEOClass.SecondaryProtons]
-fac = [ViewAtmo, ViewSky, 4*np.pi]
+               LEOClass.SecondaryProtonsUpward, LEOClass.SecondaryProtonsDownward,
+               LEOClass.PrimaryAlphas, LEOClass.CosmicPhotons, LEOClass.AlbedoPhotons]
+
+fac = [ViewAtmo, ViewSky, 2*np.pi, 2*np.pi, ViewSky, ViewSky, ViewAtmo]
 
 for i in range(0, len(Megalibfunc)):
 
     Energies = np.logspace(Elow, Ehigh, num=100, endpoint=True, base=10.0)
     Output = "%s_Spec_%skm_%sdeg.dat" % (Particle[i], int(Altitude), int(Inclination))
     IntSpectrum, err = quad(Megalibfunc[i], 10**Elow, 10**Ehigh)
-    print(Particle[i], IntSpectrum*fac[i], " #/cm^2/s")
+    print(Particle[i], IntSpectrum*fac[i], " #/cm^2/s", err)
     with open(Output, 'w') as f:
         print('# %s spectrum ' % Particle[i], file=f)
         print('# Format: DP <energy in keV> <shape of differential spectrum [XX/keV]>', file=f)
         print('# Although cosima doesn\'t use it the spectrum here is given as a flux in #/cm^2/s/keV', file=f)
+        print('# Integrated over %s sr' % fac[i], file=f)
         print('# Integral Flux: %s #/cm^2/s' % (IntSpectrum*fac[i]), file=f)
         print('', file=f)
         print('IP LOGLOG', file=f)

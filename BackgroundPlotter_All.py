@@ -36,7 +36,7 @@ Energies = np.logspace(1, 8, num=1000000, endpoint=True, base=10.0)
 LeoBack = LEO(args.altitude, args.inclination)
 
 LeoBackfunc = [LeoBack.AtmosphericNeutrons, LeoBack.CosmicPhotons,
-               LeoBack.PrimaryProtons, LeoBack.SecondaryProtons,
+               LeoBack.PrimaryProtons, LeoBack.SecondaryProtonsUpward,
                LeoBack.PrimaryAlphas, LeoBack.PrimaryElectrons,
                LeoBack.PrimaryPositrons, LeoBack.SecondaryElectrons,
                LeoBack.SecondaryPositrons, LeoBack.AlbedoPhotons,
@@ -63,7 +63,7 @@ ax1.grid(color='lightgrey', which='major', linestyle='-', linewidth=1)
 ax1.grid(color='lightgrey', which='minor', linestyle='--', linewidth=1)
 
 for i in range(0, len(LeoBackfunc)):
-    masknan = ~np.isnan(LeoBackfunc[i](Energies))
+    masknan = np.logical_and(~np.isnan(LeoBackfunc[i](Energies)), LeoBackfunc[i](Energies) > 0.)
     ax1.loglog(Energies[masknan]/1000,
                10000*1000*LeoBackfunc[i](Energies)[masknan],
                color=colors[i], linestyle='--', dashes=dash[i], label=Title[i])

@@ -13,6 +13,8 @@ class LEOBackgroundGenerator:
     It uses equations/data from:
     - Albedo Neutrons: Kole et al. 2015
                          doi:10.1016/j.astropartphys.2014.10.002
+                       Lingenfelter 1963
+                         doi:10.1029/JZ068i020p05633
     - Cosmic Photons: Türler et al. 2010
                         doi:10.1051/0004-6361/200913072
                       Mizuno et al. 2004
@@ -111,6 +113,18 @@ class LEOBackgroundGenerator:
         def log_interp(zz): return np.power(10.0, lin_interp(np.log10(zz)))
         return log_interp
 
+    def LingenfelterNeutrons(self):
+        """ Low energy neutrons spectrum at the top of the atmosphere
+        as calculated in Lingenfelter 1963
+        """
+        filename = './Data/Neutrons_Lingenfelter.dat'
+        data = pd.read_table(filename, sep=',')
+
+        data["Ener(MeV)"] = data["Ener(MeV)"]
+        data["Flux(n/cm2MeVs)"] = data["Flux(n/cm2MeVs)"]
+
+        self.LowENeutrons = data.copy()
+
     def AtmosphericNeutrons(self, E):
         """Atmospheric neutrons determinined after Kole et al. 2015
         Assumptions:
@@ -154,6 +168,21 @@ class LEOBackgroundGenerator:
         Flux[Mask3] = Norm3 * pow(EnergyMeV[Mask3], -Slope3)
         Flux[Mask4] = Norm4 * pow(EnergyMeV[Mask4], -Slope4)
 
+        try:
+            self.LowENeutrons
+        except AttributeError:
+            self.LingenfelterNeutrons()
+
+        data = self.LowENeutrons
+        f = self.log_interp1d(data["Ener(MeV)"].loc[data['Flux(n/cm2MeVs)'] > 0.],
+                              data["Flux(n/cm2MeVs)"].loc[data['Flux(n/cm2MeVs)'] > 0.])
+
+        LowEnergyNeutron = self.LingenfelterNeutrons
+
+        Scaler = (Norm1 * pow(0.008, -Slope1))/f(0.008)
+
+        Flux[EnergyMeV < 0.008] = f(EnergyMeV[EnergyMeV < 0.008]) * Scaler
+
         # View angle of the atmosphere = 4 PI - 2 PI (1-cos(HorizonAngle))
         AngleFactor = 2*np.pi * (np.cos(np.deg2rad(self.HorizonAngle)) + 1)
 
@@ -163,13 +192,23 @@ class LEOBackgroundGenerator:
         """Equation 5 from Tuerler et al. 2010
            Return a flux in ph /cm2 /s /keV /sr
         """
-        return 0.109 / ((E/28)**1.4+(E/28)**2.88)
+        Flux = np.copy(np.asarray(E, dtype=float))
+        E = np.asarray(E, dtype=float)
+        Flux[E > 1000] = 0.
+        Flux[E <= 1000] = 0.109 / ((E[E <= 1000]/28)**1.4+(E[E <= 1000]/28)**2.88)
+
+        return Flux
 
     def MizunoCosmicPhotons(self, E):
         """Equation 18 from Mizuno et al. 2004
            Return a flux in ph /cm2 /s /keV /sr
         """
-        return 40.*pow(E/1000, -2.15)/(10**7)
+
+        Flux = np.copy(np.asarray(E, dtype=float))
+        E = np.asarray(E, dtype=float)
+        Flux[E < 800] = 0.
+        Flux[E >= 800] = 40.*pow(E[E >= 800]/1000, -2.15)/(10**7)
+        return Flux
 
     def AckermannCosmicPhotons(self, E):
         """Equation 1 from Ackermann et al. 2015
@@ -179,17 +218,21 @@ class LEOBackgroundGenerator:
         I100 = 0.95*10**(-7)/1000
         gamma = 2.32
         Ecut = 279*10**6
-
+        E = np.asarray(E, dtype=float)
         Flux = np.copy(np.asarray(E, dtype=float))
 
-        Flux = I100 * (E/(100*1000))**(-gamma)*np.exp(-E/Ecut)
+        Flux[E < 800] = 0.
+        Flux[E >= 800] = I100 * (E[E >= 800]/(100*1000))**(-gamma)*np.exp(-E[E >= 800]/Ecut)
+
         return Flux
 
     def CosmicPhotons(self, E):
-        Flux = np.copy(np.asarray(E, dtype=float))
+
+        E = np.asarray(E, dtype=float)
+        Flux = np.copy(E)
 
         Eint = fsolve(lambda x: self.AckermannCosmicPhotons(x)
-                      - self.MizunoCosmicPhotons(x), 1200)
+                      - self.MizunoCosmicPhotons(x), 1200)[0]
 
         mask = np.logical_and(E >= 890, E < Eint)
 
@@ -269,12 +312,14 @@ class LEOBackgroundGenerator:
 
         c = fac*num/den
 
-        Flux = c / ((E/44)**(-5)+(E/44)**1.4)
+        Flux[E > 2000] = 0.
+        Flux[E <= 2000] = c / ((E[E <= 2000]/44)**(-5)+(E[E <= 2000]/44)**1.4)
 
         return Flux
 
     def MizunoAlbedoPhotons(self, E):
         """ Equation 21 to 23 from Mizuno et al. 2004,
+           Vertically upward
            Return a flux in ph /cm2 /s /keV /sr
         """
 
@@ -282,8 +327,10 @@ class LEOBackgroundGenerator:
         E = np.asarray(E, dtype=float)
 
         mask = np.logical_and(E >= 20000, E < 1000000.)
+        maskLE = np.logical_and(E >= 1000, E < 20000.)
 
-        Flux[E < 20000.] = 1010.0*pow(E[E < 20000.]/1000, -1.34) / 10**7
+        Flux[E < 1000] = 0
+        Flux[maskLE] = 1010.0*pow(E[maskLE]/1000, -1.34) / 10**7
         Flux[mask] = 7290.0*pow(E[mask]/1000, -2.0) / 10**7
         Flux[E >= 1000000.] = 29000*pow(E[E >= 1000000.]/1000, -2.2) / 10**7
 
@@ -293,7 +340,12 @@ class LEOBackgroundGenerator:
         """ From Abdo et al. 2010,
            Return a flux in ph /cm2 /s /keV /sr
         """
-        Flux = 1.823e-8*pow(E/200000, -2.8)
+
+        Flux = np.copy(np.asarray(E, dtype=float))
+        E = np.asarray(E, dtype=float)
+
+        Flux[E < 100000] = 0
+        Flux[E >= 100000] = 1.823e-8*pow(E[E >= 100000]/200000, -2.8)
         return Flux
 
     def AlbedoPhotons(self, E):
@@ -367,66 +419,51 @@ class LEOBackgroundGenerator:
 
     def SecondaryProtons(self, E):
         """ Equation 8 from Mizuno et al. 2004,
-            Downward and upward component are summed
+            the geomagnetic latitude intervals
+            are translated in cutoff intervals
+            considering a 400 km orbit
            Return a flux in ph /cm2 /s /keV /sr
         """
 
         EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
 
-        thM = np.deg2rad(self.geomlat)
+        Rcut = self.AvGeomagCutOff
 
-        if thM >= 0. and thM <= 0.2:
+        if Rcut >= 11.5055 and Rcut <= 12.4706:
             FluxU = self.MizunoCutoffpl(0.136, 0.123, 0.155, 0.51, EnergyMeV)
             FluxD = self.MizunoCutoffpl(0.136, 0.123, 0.155, 0.51, EnergyMeV)
-        elif thM >= 0.2 and thM <= 0.3:
+        elif Rcut >= 10.3872 and Rcut <= 11.5055:
             FluxU = self.MizunoBrokenpl(0.1, 0.87, 600, 2.53, EnergyMeV)
             FluxD = self.MizunoBrokenpl(0.1, 0.87, 600, 2.53, EnergyMeV)
-        elif thM >= 0.3 and thM <= 0.4:
+        elif Rcut >= 8.9747 and Rcut <= 10.3872:
             FluxU = self.MizunoBrokenpl(0.1, 1.09, 600, 2.40, EnergyMeV)
             FluxD = self.MizunoBrokenpl(0.1, 1.09, 600, 2.40, EnergyMeV)
-        elif thM >= 0.4 and thM <= 0.5:
+        elif Rcut >= 7.3961 and Rcut <= 8.9747:
             FluxU = self.MizunoBrokenpl(0.1, 1.19, 600, 2.54, EnergyMeV)
             FluxD = self.MizunoBrokenpl(0.1, 1.19, 600, 2.54, EnergyMeV)
-        elif thM >= 0.5 and thM <= 0.6:
+        elif Rcut >= 5.7857 and Rcut <= 7.3961:
             FluxU = self.MizunoBrokenpl(0.1, 1.18, 400, 2.31, EnergyMeV)
             FluxD = self.MizunoBrokenpl(0.1, 1.18, 400, 2.31, EnergyMeV)
-        elif thM >= 0.6 and thM <= 0.7:
+        elif Rcut >= 4.2668 and Rcut <= 5.7857:
             FluxD = self.MizunoBrokenpl(0.13, 1.1, 300, 2.25, EnergyMeV)
             FluxU = self.MizunoBrokenpl(0.13, 1.1, 300, 2.95, EnergyMeV)
-        elif thM >= 0.7 and thM <= 0.8:
+        elif Rcut >= 2.9375 and Rcut <= 4.2668:
             FluxD = self.MizunoBrokenpl(0.2, 1.5, 400, 1.85, EnergyMeV)
             FluxU = self.MizunoBrokenpl(0.2, 1.5, 400, 4.16, EnergyMeV)
-        elif thM >= 0.8 and thM <= 0.9:
+        elif Rcut >= 1.8613 and Rcut <= 2.9375:
             FluxD = self.MizunoCutoffpl(0.23, 0.017, 1.83, 0.177, EnergyMeV)
             FluxU = self.MizunoBrokenpl(0.23, 1.53, 400, 4.68, EnergyMeV)
-        elif thM >= 0.9 and thM <= 1.:
+        elif Rcut >= 1.0623 and Rcut <= 1.8613:
             FluxD = self.MizunoCutoffpl(0.44, 0.037, 1.98, 0.21, EnergyMeV)
             FluxU = self.MizunoBrokenpl(0.44, 2.25, 400, 3.09, EnergyMeV)
 
-        return (FluxU+FluxD)/10**7
+        return (FluxU+FluxD)/10**7, (FluxU)/10**7, (FluxD)/10**7
 
-    '''def SecondaryProtons(self, E):
-        """ Equation 8 from Mizuno et al. 2004,
-            A factor of 2 is added to sum downward and upward component
-           Return a flux in ph /cm2 /s /keV /sr
-        """
+    def SecondaryProtonsUpward(self, E):
+        return self.SecondaryProtons(E)[1]
 
-        EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
-
-        F0 = 0.136
-        F1 = 0.123
-        a = 0.155
-        Ec = 0.51*1000
-
-        Flux = np.copy(np.asarray(E, dtype=float))
-        mask = np.logical_and(EnergyMeV >= 1, EnergyMeV < 100)
-        maskHE = EnergyMeV >= 100
-
-        Flux[EnergyMeV < 1] = 0.
-        Flux[mask] = 2*F0*pow(EnergyMeV[mask]/100, -1)
-        Flux[maskHE] = 2*F1*pow(EnergyMeV[maskHE]/1000, -a) * np.exp(
-                                         -pow(EnergyMeV[maskHE]/Ec, -a+1))
-        return Flux/10**7'''
+    def SecondaryProtonsDownward(self, E):
+        return self.SecondaryProtons(E)[2]
 
     def AguilarElectronPositron(self):
         """ Read Table I from Aguilar et al. 2014,
@@ -468,7 +505,7 @@ class LEOBackgroundGenerator:
 
         redfac = 1/(1+(Rigidity/self.AvGeomagCutOff)**-6.0)
 
-        return f(E)*redfac*solmodfac
+        return f(E)*redfac
 
     def PrimaryPositrons(self, E):
         """ Table I from Aguilar et al. 2014,
@@ -497,7 +534,7 @@ class LEOBackgroundGenerator:
 
         redfac = 1/(1+(Rigidity/self.AvGeomagCutOff)**-6.0)
 
-        return f(E)*redfac*solmodfac
+        return f(E)*redfac
 
     def MizunoPl(self, f0, a, E):
         """Function describing a power-law
@@ -533,17 +570,17 @@ class LEOBackgroundGenerator:
         """
         EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
 
-        thM = np.deg2rad(self.geomlat)
+        Rcut = self.AvGeomagCutOff
 
-        if thM >= 0. and thM <= 0.3:
+        if Rcut >= 10.3872 and Rcut <= 12.4706:
             Flux = self.MizunoBrokenpl(0.3, 2.2, 3000, 4.0, EnergyMeV)
-        elif thM >= 0.3 and thM <= 0.6:
+        elif Rcut >= 5.7857 and Rcut <= 10.3872:
             Flux = self.MizunoPl(0.3, 2.7, EnergyMeV)
-        elif thM >= 0.6 and thM <= 0.8:
+        elif Rcut >= 2.9375 and Rcut <= 5.7857:
             Flux = self.MizunoPlhump(0.3, 3.3, 2/10000, 1.5, 2.3, EnergyMeV)
-        elif thM >= 0.8 and thM <= 0.9:
+        elif Rcut >= 1.8613 and Rcut <= 2.9375:
             Flux = self.MizunoPlhump(0.3, 3.5, 1.6/1000, 2.0, 1.6, EnergyMeV)
-        elif thM >= 0.9 and thM <= 1.0:
+        elif Rcut >= 1.0623 and Rcut <= 1.8613:
             Flux = self.MizunoPl(0.3, 2.5, EnergyMeV)
 
         return Flux/10**7
@@ -555,74 +592,25 @@ class LEOBackgroundGenerator:
         """
         EnergyMeV = 0.001*np.copy(np.asarray(E, dtype=float))
 
-        thM = np.deg2rad(self.geomlat)
+        Rcut = self.AvGeomagCutOff
 
-        if thM >= 0. and thM <= 0.3:
+        if Rcut >= 10.3872 and Rcut <= 12.4706:
             Flux = self.MizunoBrokenpl(0.3, 2.2, 3000, 4.0, EnergyMeV)
             ratio = 3.3
-        elif thM >= 0.3 and thM <= 0.6:
+        elif Rcut >= 5.7857 and Rcut <= 10.3872:
             Flux = self.MizunoPl(0.3, 2.7, EnergyMeV)
             ratio = 1.66
-        elif thM >= 0.6 and thM <= 0.8:
+        elif Rcut >= 2.9375 and Rcut <= 5.7857:
             Flux = self.MizunoPlhump(0.3, 3.3, 2/10000, 1.5, 2.3, EnergyMeV)
             ratio = 1.0
-        elif thM >= 0.8 and thM <= 0.9:
+        elif Rcut >= 1.8613 and Rcut <= 2.9375:
             Flux = self.MizunoPlhump(0.3, 3.5, 1.6/1000, 2.0, 1.6, EnergyMeV)
             ratio = 1.0
-        elif thM >= 0.9 and thM <= 1.0:
+        elif Rcut >= 1.0623 and Rcut <= 1.8613:
             Flux = self.MizunoPl(0.3, 2.5, EnergyMeV)
             ratio = 1.0
 
         return ratio*Flux/10**7
-
-    '''def SecondaryElectrons(self, E):
-        """ Secondary electrons determinined after  section 3.4 of
-            Mizuno et al. 2004
-            Return a flux in ph /cm2 /s /keV /sr
-        """
-        Flux = np.copy(np.asarray(E, dtype=float))
-        E = np.asarray(E, dtype=float)
-
-        F0 = 0.3
-        a = 2.2
-        b = 4.0
-        Ebreak = 3.0
-        EnergyGeV = np.copy(E) / 1000000
-
-        mask1 = np.logical_and(EnergyGeV >= 0.001, EnergyGeV < 0.1)
-        mask2 = np.logical_and(EnergyGeV >= 0.1, EnergyGeV < Ebreak)
-        mask3 = EnergyGeV >= Ebreak
-
-        Flux[EnergyGeV < 0.001] = 0.
-        Flux[mask1] = F0 * pow(EnergyGeV[mask1]/0.1, -1.0)
-        Flux[mask2] = F0 * pow(EnergyGeV[mask2]/0.1, -a)
-        Flux[mask3] = F0 * pow(Ebreak/0.1, -a) * pow(EnergyGeV[mask3]/Ebreak, -b)
-
-        return Flux/(1000*10000)
-
-    def SecondaryPositrons(self, E):
-        """ Secondary positrons determinined after section 3.4 of
-            Mizuno et al. 2004
-            Return a flux in ph /cm2 /s /keV /sr
-        """
-        Flux = np.copy(np.asarray(E, dtype=float))
-
-        F0 = 3.33*0.3  # 3.33 from electron positron difference in equatorial orbit
-        a = 2.2
-        b = 4.0
-        Ebreak = 3.0
-        EnergyGeV = np.asarray(E, dtype=float) / 1000000
-
-        mask1 = np.logical_and(EnergyGeV >= 0.001, EnergyGeV < 0.1)
-        mask2 = np.logical_and(EnergyGeV >= 0.1, EnergyGeV < Ebreak)
-        mask3 = EnergyGeV >= Ebreak
-
-        Flux[EnergyGeV < 0.001] = 0.
-        Flux[mask1] = F0 * pow(EnergyGeV[mask1]/0.1, -1.0)
-        Flux[mask2] = F0 * pow(EnergyGeV[mask2]/0.1, -a)
-        Flux[mask3] = F0 * pow(Ebreak/0.1, -a) * pow(EnergyGeV[mask3]/Ebreak, -b)
-
-        return Flux/(1000*10000)'''
 
     def PrimaryProtons(self, E):
         """ Read Table from Aguilar et al. 2015,
@@ -651,7 +639,7 @@ class LEOBackgroundGenerator:
         """ Solar modulation factor from Gleeson & Axford 1968"""
         solmodfac = ((EnergyGeV+E0)**2-E0**2)/(
                     (EnergyGeV+E0+self.solmod/1000)**2-E0**2)
-        return f(E)*redfac*solmodfac
+        return f(E)*redfac
 
     def PrimaryAlphas(self, E):
         """ Read Table from Aguilar et al. 2015b,
@@ -665,6 +653,7 @@ class LEOBackgroundGenerator:
 
         data["Flux"] = data["Flux"]*data['RigidityGV']
         data['RigidityGV'] = 4*(np.sqrt(E0**2+(data['RigidityGV']/2)**2)-E0)*10**6
+
         data["Flux"] = data["Flux"]/(data['RigidityGV'])/10**4
 
         EnergyGeV = 0.000001*np.asarray(E, dtype=float)
@@ -680,4 +669,4 @@ class LEOBackgroundGenerator:
         """ Solar modulation factor from Gleeson & Axford 1968"""
         solmodfac = ((EnergyGeV+E0)**2-E0**2)/(
                     (EnergyGeV+E0+2*self.solmod/1000)**2-E0**2)
-        return f(E)*redfac*solmodfac
+        return f(E)*redfac
