@@ -1,8 +1,38 @@
 <h1>Background on a low Earth orbit</h1>
 
-Macros to compute and visualize the background for a satellite on a Low Earth Orbit (LEO)
+Macros to compute and visualize the background for a satellite on a Low Earth Orbit (LEO). 
+The model used here and results using these macros are presented in:
 
-It uses equations/data from:
+P. Cumani, M. Hernanz, J. Kiener, V. Tatischeff, and A. Zoglauer. "Background for a gamma-ray satellite on a low-Earth orbit". Feb 2019. arXiv:1902.06944, doi:10.1007/s10686-019-09624-0.
+
+Please use this reference if you present any result obtain using these classes.
+
+**Table of Contents**
+
+* [Packages](#packages)
+* [Description](#description)
+* [Bibliography](#bibliography)
+* [Validity limits](#limits)
+
+<h2>Packages</h2>
+The macros are written for Python3. It uses the following packages:
+
+* Numpy
+* Astropy
+* Scipy
+* Matplotlib
+* Pandas
+
+<h2>Description</h2>
+
+* LEOBackgroundGenerator.py : contain the definition of the class describing all the background components.
+* LATBackground.py : creates the file Data/LATBackground.dat from the Fermi fits file. It needs to be used only if there is a change in the Fermi-LAT background or a change in the areas where the flux is calculated (lines 24-26).
+* BackgroundPlotter_All.py : plots all the different components. To be run with a -h (or --help) option to show a help.
+* CreateBackgroundSpectrumMEGAlib.py : creates a file describing the spectrum of different components to be used with MEGAlib to define a source. The value of the integral flux, calculated using the appropriate solid angle and to be added to the .source file, is added as a comment inside the newly created file. To be run with a -h (or --help) option to show a help.
+
+<h2>Bibliography</h2>
+The model uses equations/data from:
+
 * Albedo Neutrons: 
   - Kole et al. 2015\
 &nbsp;&nbsp; doi:10.1016/j.astropartphys.2014.10.002
@@ -55,7 +85,7 @@ It uses equations/data from:
   - Abdo et al. 2009\
 &nbsp;&nbsp; doi:10.1103/PhysRevD.80.122004
 
-<h3>Validity limits</h3>
+<h2>Validity limits</h2><a name="limits"/>
 
 | | Orbit Parameters | Energy |
 | :--- | :---: | ---:|
@@ -71,5 +101,5 @@ It uses equations/data from:
 
 Validity limits of the different components of the background.
 
-<h4>Acknowledgment</h4>
+<h2>Acknowledgment</h2>
 This work has been carried out in the framework of the project AHEAD, funded by the European Union
